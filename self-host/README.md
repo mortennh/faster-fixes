@@ -11,6 +11,8 @@ Runs on the monh VPS at `/opt/faster-fixes`: https://feedback.monh.dev
 | `apps/web/src/lib/mailer/client.ts`, `…/github/github-app.ts` | Mailer and GitHub App credentials read on first use instead of at import — modules load (and `next build` works) without `RESEND_API_KEY` / GitHub App |
 | `apps/web/src/server/auth/plugins/stripe.ts` | Stripe secret only required — and customers only created — on the cloud version (`NEXT_PUBLIC_IS_CLOUD`) |
 | `apps/web/src/server/auth/config/database-hooks.ts` | Sessions created before the default organization (sign-up without verification) get it as active organization — otherwise the dashboard sidebar stays loading |
+| `packages/widget/src/screenshot*.ts` | Screenshots: media wait capped at 3 s (was 30 s — lazy images/unplayed videos never load), unloaded videos skipped (capture hung), fonts embedded as woff2 only (font-heavy pages rendered blank), off-viewport elements skipped, full capture gets 8 s before the fallback. Measured on staging: 30–60 s / blank → a few seconds |
+| `Dockerfile.self-host` | Builds the widget and serves it at `https://feedback.monh.dev/widget.iife.js` — embed that instead of jsDelivr |
 | `apps/web/src/server/auth/config/*` | Without `RESEND_API_KEY`: no verification mail, sign-up not blocked on verification; `DISABLE_SIGN_UP=true` closes registration |
 | `Dockerfile.self-host`, `self-host/`, `.github/workflows/self-host.yml` | Image build (GHCR) + compose stack + deploy over SSH |
 

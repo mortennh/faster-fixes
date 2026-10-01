@@ -21,6 +21,11 @@ ENV NEXT_PUBLIC_FF_API_ORIGIN=$NEXT_PUBLIC_FF_API_ORIGIN \
     NEXT_PUBLIC_IS_CLOUD=$NEXT_PUBLIC_IS_CLOUD \
     NEXT_PUBLIC_FF_API_KEY=$NEXT_PUBLIC_FF_API_KEY
 
+# Self-served widget script (https://feedback.monh.dev/widget.iife.js) — includes
+# our screenshot changes, unlike the npm/jsDelivr build.
+RUN pnpm turbo run build --filter=@fasterfixes/widget --env-mode=loose \
+ && cp packages/widget/dist/widget.iife.js apps/web/public/widget.iife.js
+
 # `next build` imports every route to collect page data; some modules require
 # secrets at import. Throwaway placeholders for this step only — the real values
 # come from the runtime environment (self-host/docker-compose.yml). No DB is contacted.
