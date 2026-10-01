@@ -1,0 +1,32 @@
+# syntax = docker/dockerfile:1
+# Self-hosted FasterFixes (dashboard + widget API + Inngest functions).
+# Built by .github/workflows/self-host.yml; see self-host/README.md.
+
+FROM node:22-alpine
+RUN apk add --no-cache libc6-compat openssl && corepack enable
+WORKDIR /repo
+
+ENV HUSKY=0 CI=true NEXT_TELEMETRY_DISABLED=1
+
+COPY . .
+RUN pnpm install --frozen-lockfile
+
+# Public values are inlined into the client bundle at build time.
+ARG NEXT_PUBLIC_FF_API_ORIGIN
+ARG NEXT_PUBLIC_STORAGE_BASE_URL
+ARG NEXT_PUBLIC_IS_CLOUD=false
+ARG NEXT_PUBLIC_FF_API_KEY=""
+ENV NEXT_PUBLIC_FF_API_ORIGIN=$NEXT_PUBLIC_FF_API_ORIGIN \
+    NEXT_PUBLIC_STORAGE_BASE_URL=$NEXT_PUBLIC_STORAGE_BASE_URL \
+    NEXT_PUBLIC_IS_CLOUD=$NEXT_PUBLIC_IS_CLOUD \
+    NEXT_PUBLIC_FF_API_KEY=$NEXT_PUBLIC_FF_API_KEY
+
+# Placeholder so imports that read DATABASE_URL don't fail; no DB is contacted.
+RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+    NODE_OPTIONS="--max-old-space-size=4096" \
+    pnpm turbo run build --filter=web --env-mode=loose
+
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+EXPOSE 3000
+# Apply pending migrations, then serve.
+CMD ["sh", "-c", "pnpm --filter @workspace/db exec prisma migrate deploy && pnpm --filter web start"]

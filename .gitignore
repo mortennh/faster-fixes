@@ -57,3 +57,7 @@ _internal/
 # Skill eval workspaces
 packages/skills/*-workspace/
 
+
+# self-host secrets
+self-host/.env
+self-host/s3.json

@@ -1,0 +1,83 @@
+name: Self-host build & deploy
+
+# Builds the self-host image and deploys it to the monh VPS (https://feedback.monh.dev).
+on:
+  push:
+    branches: [self-host]
+  workflow_dispatch:
+
+concurrency:
+  group: self-host
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.self-host
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/faster-fixes:self-host
+            ghcr.io/${{ github.repository_owner }}/faster-fixes:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_FF_API_ORIGIN=https://feedback.monh.dev
+            NEXT_PUBLIC_STORAGE_BASE_URL=https://feedback-files.monh.dev/feedback
+            NEXT_PUBLIC_IS_CLOUD=false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: self-host
+      url: https://feedback.monh.dev
+    steps:
+      - name: Pull and restart on the VPS
+        uses: appleboy/ssh-action@v1
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: ${{ secrets.HETZNER_SSH_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER
+          script: |
+            set -euo pipefail
+            cd /opt/faster-fixes
+            git fetch --quiet origin self-host
+            git reset --hard origin/self-host
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin >/dev/null
+            trap 'docker logout ghcr.io >/dev/null' EXIT
+            cd self-host
+            docker compose pull --quiet
+            docker compose up -d --remove-orphans
+            docker image prune -f
+
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' https://feedback.monh.dev/login || true)
+            [ "$code" = 200 ] && { echo "login page 200"; exit 0; }
+            sleep 6
+          done
+          echo "login page returned $code"; exit 1

@@ -9,7 +9,10 @@ export const emailAndPassword: NonNullable<
   BetterAuthOptions["emailAndPassword"]
 > = {
   enabled: true,
-  requireEmailVerification: true,
+  // Self-hosting without a mailer (no RESEND_API_KEY) can't verify emails.
+  requireEmailVerification: Boolean(process.env.RESEND_API_KEY),
+  // Self-hosting: close registration once the team's accounts exist.
+  disableSignUp: process.env.DISABLE_SIGN_UP === "true",
   autoSignIn: true,
 
   sendResetPassword: async ({ user, url }) => {

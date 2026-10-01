@@ -10,7 +10,8 @@ import type { BetterAuthOptions } from "better-auth";
 export const emailVerification: NonNullable<
   BetterAuthOptions["emailVerification"]
 > = {
-  sendOnSignUp: true,
+  // No mailer when self-hosting without RESEND_API_KEY.
+  sendOnSignUp: Boolean(process.env.RESEND_API_KEY),
   autoSignInAfterVerification: true,
   afterEmailVerification: async (user) => {
     // The middleware will automatically redirect to onboarding since the user
