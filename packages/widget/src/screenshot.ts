@@ -41,6 +41,30 @@ function isUnloadedVideo(el: Element) {
   return el instanceof HTMLVideoElement && el.readyState < 2;
 }
 
+// The library computes default styles in a hidden iframe it creates on demand
+// and writes into its body right after setting `srcdoc`. Firefox 156+ has no
+// body at that moment ("can't access property appendChild, l.body is null"),
+// so every capture failed there. Provide a fully loaded sandbox instead; it is
+// marked as widget-owned so the capture skips it.
+async function createSandbox(): Promise<HTMLIFrameElement> {
+  const sandbox = document.createElement("iframe");
+  sandbox.setAttribute("data-ff-widget", "");
+  sandbox.setAttribute("aria-hidden", "true");
+  sandbox.tabIndex = -1;
+  sandbox.width = "0";
+  sandbox.height = "0";
+  sandbox.style.cssText = "position:fixed;visibility:hidden;border:0;";
+  const loaded = new Promise<void>((resolve) =>
+    sandbox.addEventListener("load", () => resolve(), { once: true }),
+  );
+  sandbox.srcdoc = '<!DOCTYPE html><meta charset="UTF-8"><title></title><body>';
+  document.body.appendChild(sandbox);
+  await loaded;
+  const doc = sandbox.contentDocument;
+  if (doc && !doc.body) doc.documentElement.appendChild(doc.createElement("body"));
+  return sandbox;
+}
+
 export async function captureViewportScreenshot(
   options: CaptureViewportScreenshotOptions = {},
 ): Promise<Blob | null> {
@@ -51,12 +75,15 @@ export async function captureViewportScreenshot(
     Math.sqrt(MAX_CANVAS_PIXELS / Math.max(1, doc.scrollWidth * doc.scrollHeight)),
   );
 
+  let sandbox: HTMLIFrameElement | undefined;
   try {
     // Shifting the clone by the scroll offset (the previous approach) rendered
     // blank on some sites once scrolled; capturing from the top and cropping is
     // reliable across Chromium, Firefox and Safari.
     const context = await createContext(document.body, {
       scale,
+      // Frees the sandbox iframe and caches once the canvas is drawn.
+      autoDestruct: true,
       timeout: MEDIA_WAIT_TIMEOUT,
       // Embedding every format of every @font-face (woff2, woff, ttf…) made the
       // SVG so large that it rendered blank on font-heavy sites; one format suffices.
@@ -71,6 +98,8 @@ export async function captureViewportScreenshot(
       },
     });
     if (!options.lightweight) context.timeout = FETCH_TIMEOUT;
+    sandbox = await createSandbox();
+    context.sandbox = sandbox;
     const page = await domToCanvas(context);
 
     const viewport = document.createElement("canvas");
@@ -95,5 +124,8 @@ export async function captureViewportScreenshot(
   } catch (err) {
     console.warn("[faster-fixes] screenshot capture failed:", err);
     return null;
+  } finally {
+    // autoDestruct removes it on success; make sure it is gone on failure too.
+    sandbox?.remove();
   }
 }
