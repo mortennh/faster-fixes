@@ -68,6 +68,10 @@ services:
       INNGEST_BASE_URL: http://inngest:8288
       INNGEST_DEV: "0"
       DISABLE_SIGN_UP: ${DISABLE_SIGN_UP:-false}
+      # Required at import by the Linear/Slack/Jira modules, even when unused
+      LINEAR_TOKEN_ENCRYPTION_KEY: ${LINEAR_TOKEN_ENCRYPTION_KEY:?}
+      SLACK_TOKEN_ENCRYPTION_KEY: ${SLACK_TOKEN_ENCRYPTION_KEY:?}
+      JIRA_TOKEN_ENCRYPTION_KEY: ${JIRA_TOKEN_ENCRYPTION_KEY:?}
       NEXT_PUBLIC_IS_CLOUD: "false"
     depends_on:
       db:

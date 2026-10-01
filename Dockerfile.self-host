@@ -21,8 +21,14 @@ ENV NEXT_PUBLIC_FF_API_ORIGIN=$NEXT_PUBLIC_FF_API_ORIGIN \
     NEXT_PUBLIC_IS_CLOUD=$NEXT_PUBLIC_IS_CLOUD \
     NEXT_PUBLIC_FF_API_KEY=$NEXT_PUBLIC_FF_API_KEY
 
-# Placeholder so imports that read DATABASE_URL don't fail; no DB is contacted.
+# `next build` imports every route to collect page data; some modules require
+# secrets at import. Throwaway placeholders for this step only — the real values
+# come from the runtime environment (self-host/docker-compose.yml). No DB is contacted.
 RUN DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+    BETTER_AUTH_SECRET="build-placeholder-not-used-at-runtime-000000" \
+    LINEAR_TOKEN_ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000" \
+    SLACK_TOKEN_ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000" \
+    JIRA_TOKEN_ENCRYPTION_KEY="0000000000000000000000000000000000000000000000000000000000000000" \
     NODE_OPTIONS="--max-old-space-size=4096" \
     pnpm turbo run build --filter=web --env-mode=loose
 
