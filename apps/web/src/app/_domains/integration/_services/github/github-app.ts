@@ -3,17 +3,16 @@ import { Octokit } from "@octokit/core";
 
 import { requireEnv } from "@/utils/environment/require-env";
 
-const privateKey = requireEnv(
-  "GITHUB_PRIVATE_KEY",
-  process.env.GITHUB_PRIVATE_KEY,
-).replace(/\\n/g, "\n");
-
-// Read on call, not at import: only the private key has always been required
-// to load this module.
+// Read on call, not at import: instances without a GitHub App (self-hosted)
+// must still be able to load this module — it is imported by the Inngest
+// functions and by pages collected during `next build`.
 function getAppAuth() {
   return {
     appId: requireEnv("GITHUB_APP_ID", process.env.GITHUB_APP_ID),
-    privateKey,
+    privateKey: requireEnv(
+      "GITHUB_PRIVATE_KEY",
+      process.env.GITHUB_PRIVATE_KEY,
+    ).replace(/\\n/g, "\n"),
   };
 }
 
