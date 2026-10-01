@@ -1,17 +1,11 @@
 import { createContext, domToCanvas } from "modern-screenshot";
 
 export type CaptureViewportScreenshotOptions = {
-  // Skip images and videos so the capture finishes fast when the full one timed out
+  // Fallback when the full capture timed out: no font embedding and short fetch
+  // timeouts (slow images become same-size placeholders). Elements are never
+  // removed — that would shift the layout and the cropped viewport.
   lightweight?: boolean;
 };
-
-function isMediaElement(el: Element) {
-  return (
-    el instanceof HTMLImageElement ||
-    el instanceof HTMLVideoElement ||
-    el instanceof HTMLPictureElement
-  );
-}
 
 // The page is captured from the top (full document) and the viewport is cut out
 // afterwards. Fixed descendants are laid out against the top of that capture, so
@@ -40,7 +34,9 @@ const FETCH_TIMEOUT = 15000;
 // capture is scaled down on long pages to stay below that.
 const MAX_CANVAS_PIXELS = 16_000_000;
 
-// Videos without a decoded frame can't be drawn; cloning them hung the capture.
+// Videos without a decoded frame can't be drawn; cloning them hung the capture
+// (the library waits for them without a timeout). Teaser/overlay videos are
+// positioned, so leaving them out doesn't move the layout.
 function isUnloadedVideo(el: Element) {
   return el instanceof HTMLVideoElement && el.readyState < 2;
 }
@@ -64,18 +60,17 @@ export async function captureViewportScreenshot(
       timeout: MEDIA_WAIT_TIMEOUT,
       // Embedding every format of every @font-face (woff2, woff, ttf…) made the
       // SVG so large that it rendered blank on font-heavy sites; one format suffices.
-      font: { preferredFormat: "woff2" },
+      font: options.lightweight ? false : { preferredFormat: "woff2" },
       onCloneNode: (cloned) => reanchorFixedElements(cloned, scrollX, scrollY),
       // Inverted from html2canvas: return true to INCLUDE, false to EXCLUDE
       filter: (node: Node) => {
         if (!(node instanceof Element)) return true;
         if (node.hasAttribute("data-ff-widget")) return false;
-        if (options.lightweight && isMediaElement(node)) return false;
         if (isUnloadedVideo(node)) return false;
         return true;
       },
     });
-    context.timeout = FETCH_TIMEOUT;
+    if (!options.lightweight) context.timeout = FETCH_TIMEOUT;
     const page = await domToCanvas(context);
 
     const viewport = document.createElement("canvas");
