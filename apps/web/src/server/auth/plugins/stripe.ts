@@ -1,11 +1,15 @@
 import { SUBSCRIPTION_PLANS } from "@/server/auth/config/subscription-plans";
 import { authorizeBillingReference } from "@/server/auth/subscription/authorize-billing-reference";
 import { stripeApi } from "@/server/stripe";
+import { isCloud } from "@/utils/environment/env";
 import { requireEnv } from "@/utils/environment/require-env";
 import { stripe } from "@better-auth/stripe";
 import { prisma } from "@workspace/db";
 
+// Billing only runs on the hosted cloud version; self-hosted instances leave
+// Stripe unset (see docs/self-hosting) and must still load this module.
 if (
+  isCloud() &&
   process.env.NODE_ENV === "production" &&
   !process.env.STRIPE_WEBHOOK_SIGNING_SECRET
 ) {
@@ -15,7 +19,8 @@ if (
 export const stripePlugin = stripe({
   stripeClient: stripeApi,
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SIGNING_SECRET ?? "",
-  createCustomerOnSignUp: true,
+  // No Stripe account behind self-hosted instances.
+  createCustomerOnSignUp: isCloud(),
   organization: {
     enabled: true,
     getCustomerCreateParams: async (organization) => {

@@ -9,6 +9,7 @@ Runs on the monh VPS at `/opt/faster-fixes`: https://feedback.monh.dev
 | `packages/database/index.ts` | `DATABASE_DRIVER=pg` → standard Postgres driver (upstream uses Neon's HTTP driver in production) |
 | `apps/web/src/server/storage/index.ts` | `MINIO_ENDPOINT` → any S3-compatible store via the `minio()` client (here: SeaweedFS) instead of Cloudflare R2 |
 | `apps/web/src/lib/mailer/client.ts`, `…/github/github-app.ts` | Mailer and GitHub App credentials read on first use instead of at import — modules load (and `next build` works) without `RESEND_API_KEY` / GitHub App |
+| `apps/web/src/server/auth/plugins/stripe.ts` | Stripe secret only required — and customers only created — on the cloud version (`NEXT_PUBLIC_IS_CLOUD`) |
 | `apps/web/src/server/auth/config/*` | Without `RESEND_API_KEY`: no verification mail, sign-up not blocked on verification; `DISABLE_SIGN_UP=true` closes registration |
 | `Dockerfile.self-host`, `self-host/`, `.github/workflows/self-host.yml` | Image build (GHCR) + compose stack + deploy over SSH |
 
