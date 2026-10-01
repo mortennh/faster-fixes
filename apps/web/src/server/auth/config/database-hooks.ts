@@ -20,7 +20,7 @@ export const databaseHooks: NonNullable<BetterAuthOptions["databaseHooks"]> = {
           await getUniqueOrganizationSlug("My organization");
 
         // Create a default organization for every new user
-        await prisma.organization.create({
+        const organization = await prisma.organization.create({
           data: {
             name: "My organization",
             slug: organizationSlug,
@@ -34,6 +34,15 @@ export const databaseHooks: NonNullable<BetterAuthOptions["databaseHooks"]> = {
               ],
             },
           },
+        });
+
+        // Without email verification (self-hosted, no mailer) sign-up signs the
+        // user in right away, so the session can exist before this organization
+        // — session.create.before then found nothing to activate, and the
+        // dashboard waits forever for an active organization.
+        await prisma.session.updateMany({
+          where: { userId: user.id, activeOrganizationId: null },
+          data: { activeOrganizationId: organization.id },
         });
       },
     },
