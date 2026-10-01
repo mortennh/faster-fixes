@@ -39,7 +39,7 @@ services:
     image: inngest/inngest:v1.45.1
     container_name: ff-inngest
     restart: unless-stopped
-    command: inngest start --event-key ${INNGEST_EVENT_KEY:?} --signing-key ${INNGEST_SIGNING_KEY:?} --sdk-url http://app:3000/api/inngest
+    command: inngest start --event-key ${INNGEST_EVENT_KEY:?} --signing-key ${INNGEST_SIGNING_KEY:?} --sdk-url http://app:3000/api/inngest --poll-interval 60
     ports:
       - "127.0.0.1:8288:8288"
     volumes:
